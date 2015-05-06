@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flynn/flynn/controller/client"
-	ct "github.com/flynn/flynn/controller/types"
-	"github.com/flynn/flynn/discoverd/client"
-	"github.com/flynn/flynn/pkg/cluster"
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/controller/client"
+	ct "github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/controller/types"
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/discoverd/client"
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/cluster"
 )
 
 func main() {
