@@ -63,9 +63,11 @@ func initDB() error {
 	m.Add(1,
 		`CREATE TABLE repos (
 	id serial PRIMARY KEY,
-	name text UNIQUE NOT NULL,
+	name text NOT NULL,
+	branch text NOT NULL DEFAULT 'master',
 	app text NOT NULL,
-	created_at timestamp with time zone NOT NULL DEFAULT current_timestamp
+	created_at timestamp with time zone NOT NULL DEFAULT current_timestamp,
+	UNIQUE (name, branch)
 	);`)
 	return m.Migrate(db)
 }
@@ -91,17 +93,18 @@ func index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 type Repo struct {
 	ID        int64      `json:"id"`
 	Name      string     `json:"name"`
+	Branch    string     `json:"branch"`
 	App       string     `json:"app"`
 	CreatedAt *time.Time `json:"created_at"`
 }
 
 func scanRepo(s postgres.Scanner) (Repo, error) {
 	var r Repo
-	return r, s.Scan(&r.ID, &r.Name, &r.App, &r.CreatedAt)
+	return r, s.Scan(&r.ID, &r.Name, &r.Branch, &r.App, &r.CreatedAt)
 }
 
 func getRepos(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	rows, err := db.Query("SELECT id, name, app, created_at FROM repos")
+	rows, err := db.Query("SELECT id, name, branch, app, created_at FROM repos")
 	if err != nil {
 		log.Println("error getting repos from db:", err)
 		http.Error(w, "error getting repos", 500)
@@ -129,14 +132,18 @@ func getRepos(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 
 func createRepo(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	r := Repo{
-		Name: req.FormValue("name"),
-		App:  req.FormValue("app"),
+		Name:   req.FormValue("name"),
+		Branch: req.FormValue("branch"),
+		App:    req.FormValue("app"),
 	}
 	if r.Name == "" || r.App == "" {
 		http.Error(w, "both name and app are required", 400)
 		return
 	}
-	err := db.QueryRow("INSERT INTO repos (name, app) VALUES ($1, $2) RETURNING created_at", r.Name, r.App).Scan(&r.CreatedAt)
+	if r.Branch == "" {
+		r.Branch = "master"
+	}
+	err := db.QueryRow("INSERT INTO repos (name, branch, app) VALUES ($1, $2, $3) RETURNING created_at", r.Name, r.Branch, r.App).Scan(&r.CreatedAt)
 	if err != nil {
 		log.Println("error adding repo to db:", err)
 		http.Error(w, "error adding repo", 500)
@@ -145,8 +152,8 @@ func createRepo(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	http.Redirect(w, req, "/", 302)
 }
 
-func getRepo(name string) (Repo, error) {
-	row := db.QueryRow("SELECT id, name, app, created_at FROM repos WHERE name = $1", name)
+func getRepo(name, branch string) (Repo, error) {
+	row := db.QueryRow("SELECT id, name, branch, app, created_at FROM repos WHERE name = $1 AND branch = $2", name, branch)
 	return scanRepo(row)
 }
 
@@ -204,13 +211,14 @@ func webhook(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	repo, err := getRepo(event.Repository.FullName)
+	branch := path.Base(event.Ref)
+	repo, err := getRepo(event.Repository.FullName, branch)
 	if err != nil {
-		log.Printf("error loading repo %q: %s\n", event.Repository.FullName, err)
+		log.Printf("error loading repo %q (%q branch): %s\n", event.Repository.FullName, branch, err)
 		return
 	}
 
-	go deploy(repo.App, event.Repository.CloneURL, path.Base(event.Ref), event.HeadCommit.ID)
+	go deploy(repo.App, event.Repository.CloneURL, branch, event.HeadCommit.ID)
 }
 
 func deploy(app, url, branch, commit string) {
