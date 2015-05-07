@@ -1,10 +1,17 @@
 {
 	"ImportPath": "github.com/lmars/flynn-webhook-deploy",
 	"GoVersion": "go1.4.2",
-	"Packages": [
-		"."
-	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/flynn/flynn/appliance/postgresql/state",
+			"Comment": "v20150506.0",
+			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+		},
+		{
+			"ImportPath": "github.com/flynn/flynn/appliance/postgresql/xlog",
+			"Comment": "v20150506.0",
+			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+		},
 		{
 			"ImportPath": "github.com/flynn/flynn/controller/client",
 			"Comment": "v20150506.0",
@@ -76,7 +83,17 @@
 			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
 		},
 		{
+			"ImportPath": "github.com/flynn/flynn/pkg/postgres",
+			"Comment": "v20150506.0",
+			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+		},
+		{
 			"ImportPath": "github.com/flynn/flynn/pkg/random",
+			"Comment": "v20150506.0",
+			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+		},
+		{
+			"ImportPath": "github.com/flynn/flynn/pkg/shutdown",
 			"Comment": "v20150506.0",
 			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
 		},

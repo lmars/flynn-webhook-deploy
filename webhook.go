@@ -14,6 +14,9 @@ import (
 	ct "github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/controller/types"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/discoverd/client"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/cluster"
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/postgres"
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/go-sql"
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
 )
 
 func main() {
@@ -23,32 +26,15 @@ func main() {
 }
 
 var client *controller.Client
-var repos = make(map[string]string)
+var db *sql.DB
 
 func run() error {
-	instances, err := discoverd.GetInstances("flynn-controller", 10*time.Second)
-	if err != nil {
-		log.Println("error looking up controller in service discovery:", err)
+	if err := initDB(); err != nil {
 		return err
 	}
 
-	client, err = controller.NewClient("", instances[0].Meta["AUTH_KEY"])
-	if err != nil {
-		log.Println("error creating controller client:", err)
+	if err := initClient(); err != nil {
 		return err
-	}
-
-	log.Println("parsing REPOS")
-	reposEnv := os.Getenv("REPOS")
-	if reposEnv != "" {
-		for _, s := range strings.Split(reposEnv, " ") {
-			repoApp := strings.SplitN(s, "=", 2)
-			if repoApp[1] == "" {
-				continue
-			}
-			log.Printf("mapping GitHub repo %q to Flynn app %q\n", repoApp[0], repoApp[1])
-			repos[repoApp[0]] = repoApp[1]
-		}
 	}
 
 	port := os.Getenv("PORT")
@@ -56,9 +42,112 @@ func run() error {
 		port = "5000"
 	}
 
-	http.HandleFunc("/", webhook)
+	router := httprouter.New()
+	router.POST("/", webhook)
+	router.GET("/", index)
+	router.GET("/repos.json", getRepos)
+	router.POST("/repos", createRepo)
+	router.ServeFiles("/assets/*filepath", http.Dir("assets"))
+
 	log.Printf("listening for GitHub webhooks on port %s...\n", port)
-	return http.ListenAndServe(":"+port, nil)
+	return http.ListenAndServe(":"+port, router)
+}
+
+func initDB() error {
+	pg, err := postgres.Open("", "")
+	if err != nil {
+		return err
+	}
+	db = pg.DB
+	m := postgres.NewMigrations()
+	m.Add(1,
+		`CREATE TABLE repos (
+	id serial PRIMARY KEY,
+	name text UNIQUE NOT NULL,
+	app text NOT NULL,
+	created_at timestamp with time zone NOT NULL DEFAULT current_timestamp
+	);`)
+	return m.Migrate(db)
+}
+
+func initClient() error {
+	instances, err := discoverd.GetInstances("flynn-controller", 10*time.Second)
+	if err != nil {
+		log.Println("error looking up controller in service discovery:", err)
+		return err
+	}
+	client, err = controller.NewClient("", instances[0].Meta["AUTH_KEY"])
+	if err != nil {
+		log.Println("error creating controller client:", err)
+		return err
+	}
+	return nil
+}
+
+func index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	http.ServeFile(w, req, "assets/index.html")
+}
+
+type Repo struct {
+	ID        int64      `json:"id"`
+	Name      string     `json:"name"`
+	App       string     `json:"app"`
+	CreatedAt *time.Time `json:"created_at"`
+}
+
+func scanRepo(s postgres.Scanner) (Repo, error) {
+	var r Repo
+	return r, s.Scan(&r.ID, &r.Name, &r.App, &r.CreatedAt)
+}
+
+func getRepos(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	rows, err := db.Query("SELECT id, name, app, created_at FROM repos")
+	if err != nil {
+		log.Println("error getting repos from db:", err)
+		http.Error(w, "error getting repos", 500)
+		return
+	}
+	var repos []Repo
+	for rows.Next() {
+		repo, err := scanRepo(rows)
+		if err != nil {
+			rows.Close()
+			log.Println("error scanning db row:", err)
+			http.Error(w, "error getting repos", 500)
+			return
+		}
+		repos = append(repos, repo)
+	}
+	if err := rows.Err(); err != nil {
+		log.Println("error scanning db rows:", err)
+		http.Error(w, "error getting repos", 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repos)
+}
+
+func createRepo(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	r := Repo{
+		Name: req.FormValue("name"),
+		App:  req.FormValue("app"),
+	}
+	if r.Name == "" || r.App == "" {
+		http.Error(w, "both name and app are required", 400)
+		return
+	}
+	err := db.QueryRow("INSERT INTO repos (name, app) VALUES ($1, $2) RETURNING created_at", r.Name, r.App).Scan(&r.CreatedAt)
+	if err != nil {
+		log.Println("error adding repo to db:", err)
+		http.Error(w, "error adding repo", 500)
+		return
+	}
+	http.Redirect(w, req, "/", 302)
+}
+
+func getRepo(name string) (Repo, error) {
+	row := db.QueryRow("SELECT id, name, app, created_at FROM repos WHERE name = $1", name)
+	return scanRepo(row)
 }
 
 type Event struct {
@@ -78,7 +167,7 @@ type Repository struct {
 	URL      string `json:"url"`
 }
 
-func webhook(w http.ResponseWriter, req *http.Request) {
+func webhook(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	log.Println("handling request")
 	defer req.Body.Close()
 
@@ -115,13 +204,13 @@ func webhook(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	app, ok := repos[event.Repository.FullName]
-	if !ok {
-		log.Printf("skipping unknown repo: %q\n", event.Repository.FullName)
+	repo, err := getRepo(event.Repository.FullName)
+	if err != nil {
+		log.Printf("error loading repo %q: %s\n", event.Repository.FullName, err)
 		return
 	}
 
-	go deploy(app, event.Repository.CloneURL, path.Base(event.Ref), event.HeadCommit.ID)
+	go deploy(repo.App, event.Repository.CloneURL, path.Base(event.Ref), event.HeadCommit.ID)
 }
 
 func deploy(app, url, branch, commit string) {
