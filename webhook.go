@@ -47,6 +47,7 @@ func run() error {
 	router.GET("/", index)
 	router.GET("/repos.json", getRepos)
 	router.POST("/repos", createRepo)
+	router.GET("/apps.json", getApps)
 	router.ServeFiles("/assets/*filepath", http.Dir("assets"))
 
 	log.Printf("listening for GitHub webhooks on port %s...\n", port)
@@ -150,6 +151,17 @@ func createRepo(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 		return
 	}
 	http.Redirect(w, req, "/", 302)
+}
+
+func getApps(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	apps, err := client.AppList()
+	if err != nil {
+		log.Println("error getting apps:", err)
+		http.Error(w, "error getting apps", 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(apps)
 }
 
 func getRepo(name, branch string) (Repo, error) {

@@ -61,7 +61,9 @@
               <div class="form-group">
                 <label for="repo-app" class="col-sm-4 control-label">Flynn App Name</label>
                 <div class="col-sm-8">
-                  <input type="text" class="form-control" id="repo-app" name="app">
+                  <select class="form-control" id="repo-app" name="app">
+                    <option disabled="disabled">-- choose app --</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -81,6 +83,10 @@
         <td><%= app %></td>
         <td><%= created_at.fromNow() %> (<%= created_at.format("lll") %>)</td>
       </tr>
+    </script>
+
+    <script type="text/template" id="option-template">
+      <option value="<%= name %>"><%= name %></option>
     </script>
 
     <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
