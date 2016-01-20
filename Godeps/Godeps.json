@@ -1,137 +1,168 @@
 {
 	"ImportPath": "github.com/lmars/flynn-webhook-deploy",
-	"GoVersion": "go1.4.2",
+	"GoVersion": "go1.4",
 	"Deps": [
 		{
+			"ImportPath": "github.com/docker/docker/pkg/units",
+			"Comment": "v1.4.1-2039-ge589dc7",
+			"Rev": "e589dc7424dfad993f1fc646b66fa04306a2df2d"
+		},
+		{
 			"ImportPath": "github.com/flynn/flynn/appliance/postgresql/state",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/appliance/postgresql/xlog",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/controller/client",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/controller/types",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/discoverd/client",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
+		},
+		{
+			"ImportPath": "github.com/flynn/flynn/discoverd/types",
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
+		},
+		{
+			"ImportPath": "github.com/flynn/flynn/host/resource",
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/host/types",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/host/volume",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pinkerton/layer",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/attempt",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
+		},
+		{
+			"ImportPath": "github.com/flynn/flynn/pkg/certgen",
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/cluster",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/cors",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/ctxhelper",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/dialer",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/httpclient",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/httphelper",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/pinned",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/postgres",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/random",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/shutdown",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/sse",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/pkg/stream",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
+		},
+		{
+			"ImportPath": "github.com/flynn/flynn/pkg/tlscert",
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
+		},
+		{
+			"ImportPath": "github.com/flynn/flynn/pkg/typeconv",
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/flynn/router/types",
-			"Comment": "v20150506.0",
-			"Rev": "f08076ed90c0d1c5c6f89f6e850f8fb6f639ee3c"
+			"Comment": "v20160119.0",
+			"Rev": "065c16fca99f5f05c14ff2a609bcfd26953ec72b"
 		},
 		{
 			"ImportPath": "github.com/flynn/go-sql",
 			"Rev": "8376517daddbc0945def6c4aa6300b9034edf8c4"
 		},
 		{
-			"ImportPath": "github.com/flynn/pq",
-			"Rev": "34b669d7dd7ed9051866cb5c14b7b02106537f81"
-		},
-		{
 			"ImportPath": "github.com/jackc/pgx",
-			"Comment": "v2.5.0-2-g5bb7f64",
-			"Rev": "5bb7f64dac0d1c599a01218a69c51941eb0891fc"
+			"Comment": "v2.7.1-16-g8577dcc",
+			"Rev": "8577dccd65312eecac353c96d908f8796d49f54c"
 		},
 		{
 			"ImportPath": "github.com/julienschmidt/httprouter",
+			"Comment": "v1.1",
 			"Rev": "8c199fb6259ffc1af525cc3ad52ee60ba8359669"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-colorable",
 			"Rev": "d67e0b7d1797975196499f79bcc322c08b9f218b"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-isatty",
+			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
 		},
 		{
 			"ImportPath": "github.com/wadey/cryptorand",
@@ -140,6 +171,10 @@
 		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "a8c61998a557a37435f719980da368469c10bfed"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "442cd600860ce722f6615730eb008a37a87b13ee"
 		},
 		{
 			"ImportPath": "gopkg.in/inconshreveable/log15.v2",

@@ -55,11 +55,7 @@ func run() error {
 }
 
 func initDB() error {
-	pg, err := postgres.Open("", "")
-	if err != nil {
-		return err
-	}
-	db = pg.DB
+	db := postgres.Wait(nil, nil)
 	m := postgres.NewMigrations()
 	m.Add(1,
 		`CREATE TABLE repos (

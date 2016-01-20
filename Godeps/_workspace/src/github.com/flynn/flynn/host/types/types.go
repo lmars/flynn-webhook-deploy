@@ -1,16 +1,22 @@
 package host
 
 import (
+	"errors"
 	"time"
+
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/host/resource"
 )
+
+// TagPrefix is the prefix added to tags in discoverd instance metadata
+const TagPrefix = "tag:"
 
 type Job struct {
 	ID string `json:"id,omitempty"`
 
 	Metadata map[string]string `json:"metadata,omitempty"`
 
-	Artifact  Artifact     `json:"artifact,omitempty"`
-	Resources JobResources `json:"resources,omitempty"`
+	Artifact  Artifact           `json:"artifact,omitempty"`
+	Resources resource.Resources `json:"resources,omitempty"`
 
 	Config ContainerConfig `json:"config,omitempty"`
 
@@ -204,10 +210,11 @@ type ActiveJob struct {
 	Status      JobStatus `json:"status,omitempty"`
 	StartedAt   time.Time `json:"started_at,omitempty"`
 	EndedAt     time.Time `json:"ended_at,omitempty"`
-	ExitStatus  int       `json:"exit_status,omitempty"`
+	ExitStatus  *int      `json:"exit_status,omitempty"`
 	Error       *string   `json:"error,omitempty"`
-	ManifestID  string    `json:"manifest_id,omitempty"`
 }
+
+var ErrJobNotRunning = errors.New("host: job not running")
 
 type AttachReq struct {
 	JobID  string     `json:"job_id,omitempty"`
@@ -256,3 +263,46 @@ const (
 	AttachExit
 	AttachResize
 )
+
+type NetworkConfig struct {
+	Subnet    string   `json:"subnet"`
+	MTU       int      `json:"mtu"`
+	Resolvers []string `json:"resolvers"`
+}
+
+type DiscoverdConfig struct {
+	JobID string `json:"job_id"`
+	URL   string `json:"url"`
+	DNS   string `json:"dns"`
+}
+
+type HostStatus struct {
+	ID        string            `json:"id"`
+	Tags      map[string]string `json:"tags,omitempty"`
+	PID       int               `json:"pid"`
+	URL       string            `json:"url"`
+	Discoverd *DiscoverdConfig  `json:"discoverd,omitempty"`
+	Network   *NetworkConfig    `json:"network,omitempty"`
+	Version   string            `json:"version"`
+}
+
+const (
+	JobEventCreate string = "create"
+	JobEventStart  string = "start"
+	JobEventStop   string = "stop"
+	JobEventError  string = "error"
+)
+
+type ResourceCheck struct {
+	Ports []Port `json"ports,omitempty"`
+}
+
+type Command struct {
+	Path string   `json:"path"`
+	Args []string `json:"args"`
+	PID  int      `json:"pid"`
+}
+
+type LogBuffers map[string]LogBuffer
+
+type LogBuffer map[string]string

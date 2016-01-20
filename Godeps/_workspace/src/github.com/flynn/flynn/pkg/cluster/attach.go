@@ -21,7 +21,7 @@ var ErrWouldWait = errors.New("cluster: attach would wait")
 // wait is true, the client will wait for the job to start before returning the
 // first bytes. If wait is false and the job is not running, ErrWouldWait is
 // returned.
-func (c *hostClient) Attach(req *host.AttachReq, wait bool) (AttachClient, error) {
+func (c *Host) Attach(req *host.AttachReq, wait bool) (AttachClient, error) {
 	rwc, err := c.c.Hijack("POST", "/attach", http.Header{"Upgrade": {"flynn-attach/0"}}, req)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,11 @@ func (c *hostClient) Attach(req *host.AttachReq, wait bool) (AttachClient, error
 			if len(errBytes) >= 4 {
 				errBytes = errBytes[4:]
 			}
-			return errors.New(string(errBytes))
+			errMsg := string(errBytes)
+			if errMsg == host.ErrJobNotRunning.Error() {
+				return host.ErrJobNotRunning
+			}
+			return errors.New(errMsg)
 		default:
 			rwc.Close()
 			return fmt.Errorf("cluster: unknown attach state: %d", attachState)

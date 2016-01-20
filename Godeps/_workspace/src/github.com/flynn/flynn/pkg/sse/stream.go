@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"sync"
 	"time"
 
 	hh "github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/httphelper"
@@ -16,6 +17,7 @@ type identifier interface {
 }
 
 type Stream struct {
+	once      sync.Once
 	w         *writer
 	rw        http.ResponseWriter
 	fw        hh.FlushWriter
@@ -143,11 +145,11 @@ func (s *Stream) Error(err error) {
 }
 
 func (s *Stream) Close() {
-	if !s.closed {
+	s.once.Do(func() {
 		s.closed = true
 		close(s.closeChan)
 		s.Wait()
-	}
+	})
 }
 
 func (s *Stream) CloseWithError(err error) {

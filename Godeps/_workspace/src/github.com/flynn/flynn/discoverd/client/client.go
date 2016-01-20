@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	dt "github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/discoverd/types"
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/dialer"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/httpclient"
 	hh "github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/httphelper"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/stream"
@@ -45,8 +47,11 @@ func NewClientWithURL(url string) *Client {
 	}
 	return &Client{
 		c: &httpclient.Client{
-			URL:  url,
-			HTTP: http.DefaultClient,
+			URL: url,
+			HTTP: &http.Client{
+				Transport:     &http.Transport{Dial: dialer.Retry.Dial},
+				CheckRedirect: redirectPreserveHeaders,
+			},
 		},
 	}
 }
@@ -61,6 +66,21 @@ func NewClientWithHTTP(url string, hc *http.Client) *Client {
 			HTTP: hc,
 		},
 	}
+}
+
+func redirectPreserveHeaders(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return fmt.Errorf("too many redirects")
+	}
+	if len(via) == 0 {
+		return nil
+	}
+	for attr, val := range via[0].Header {
+		if _, ok := req.Header[attr]; !ok {
+			req.Header[attr] = val
+		}
+	}
+	return nil
 }
 
 func (c *Client) Ping() error {
@@ -143,6 +163,10 @@ outer:
 	}
 }
 
+func (c *Client) Shutdown() (res dt.ShutdownInfo, err error) {
+	return res, c.c.Post("/shutdown", nil, &res)
+}
+
 type service struct {
 	client *Client
 	name   string
@@ -177,6 +201,8 @@ func (s *service) Addrs() ([]string, error) {
 	return addrs, nil
 }
 
+// Leaders sends leader events to the given channel (sending nil when there is
+// no leader, for example if there are no instances currently registered).
 func (s *service) Leaders(leaders chan *Instance) (stream.Stream, error) {
 	events := make(chan *Event)
 	eventStream, err := s.client.c.Stream("GET", fmt.Sprintf("/services/%s/leader", s.name), nil, events)
@@ -215,10 +241,6 @@ func (s *service) Leaders(leaders chan *Instance) (stream.Stream, error) {
 		}
 	}()
 	return stream, nil
-}
-
-func (s *service) Watch(events chan *Event) (stream.Stream, error) {
-	return s.client.c.Stream("GET", fmt.Sprintf("/services/%s", s.name), nil, events)
 }
 
 type ServiceMeta struct {

@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/mattn/go-isatty"
+	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/mattn/go-isatty"
 )
 
 const (

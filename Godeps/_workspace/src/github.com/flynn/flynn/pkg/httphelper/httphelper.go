@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"reflect"
+	"syscall"
 	"time"
 
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/cors"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/ctxhelper"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/random"
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/go-sql/driver"
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/pq"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/jackc/pgx"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/golang.org/x/net/context"
@@ -24,9 +24,11 @@ const (
 	NotFoundErrorCode           ErrorCode = "not_found"
 	ObjectNotFoundErrorCode     ErrorCode = "object_not_found"
 	ObjectExistsErrorCode       ErrorCode = "object_exists"
+	ConflictErrorCode           ErrorCode = "conflict"
 	SyntaxErrorCode             ErrorCode = "syntax_error"
 	ValidationErrorCode         ErrorCode = "validation_error"
 	PreconditionFailedErrorCode ErrorCode = "precondition_failed"
+	UnauthorizedErrorCode       ErrorCode = "unauthorized"
 	UnknownErrorCode            ErrorCode = "unknown_error"
 )
 
@@ -34,9 +36,11 @@ var errorResponseCodes = map[ErrorCode]int{
 	NotFoundErrorCode:           404,
 	ObjectNotFoundErrorCode:     404,
 	ObjectExistsErrorCode:       409,
+	ConflictErrorCode:           409,
 	PreconditionFailedErrorCode: 412,
 	SyntaxErrorCode:             400,
 	ValidationErrorCode:         400,
+	UnauthorizedErrorCode:       401,
 	UnknownErrorCode:            500,
 }
 
@@ -74,14 +78,14 @@ func IsRetryableError(err error) bool {
 	return ok && e.Retry
 }
 
-var CORSAllowAllHandler = cors.Allow(&cors.Options{
+var CORSAllowAll = &cors.Options{
 	AllowAllOrigins:  true,
 	AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"},
 	AllowHeaders:     []string{"Authorization", "Accept", "Content-Type", "If-Match", "If-None-Match"},
-	ExposeHeaders:    []string{"ETag"},
+	ExposeHeaders:    []string{"ETag", "Content-Disposition"},
 	AllowCredentials: true,
 	MaxAge:           time.Hour,
-})
+}
 
 // Handler is an extended version of http.Handler that also takes a context
 // argument ctx.
@@ -147,6 +151,14 @@ func logError(w http.ResponseWriter, err error) {
 // likely result in the same error), but it is expected that such errors are
 // caught and a validation error returned to the client rather than the
 // postgres error.
+//
+// Errors returned from "net" are also considered retryable because they
+// generally occur when the process is trying to reach another resource which
+// may be down temporarily.
+// This also includes syscall.Errno, which is notable because it can also be
+// returned from file operations among other things.
+// It's expected if you don't want clients to retry on these errors they
+// should be caught and a more appropriate error returned to the caller.
 func buildJSONError(err error) *JSONError {
 	jsonError := &JSONError{
 		Code:    UnknownErrorCode,
@@ -158,14 +170,14 @@ func buildJSONError(err error) *JSONError {
 			Code:    SyntaxErrorCode,
 			Message: "The provided JSON input is invalid",
 		}
-	case *pq.Error:
+	case pgx.PgError, *net.OpError, syscall.Errno:
 		jsonError.Retry = true
 	case JSONError:
 		jsonError = &v
 	case *JSONError:
 		jsonError = v
 	default:
-		if err == driver.ErrBadConn || err == pgx.ErrDeadConn {
+		if err == pgx.ErrDeadConn {
 			jsonError.Retry = true
 		}
 	}
