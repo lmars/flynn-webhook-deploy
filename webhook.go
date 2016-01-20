@@ -74,7 +74,7 @@ func initDB() error {
 }
 
 func initClient() error {
-	instances, err := discoverd.GetInstances("flynn-controller", 10*time.Second)
+	instances, err := discoverd.GetInstances("controller", 10*time.Second)
 	if err != nil {
 		log.Println("error looking up controller in service discovery:", err)
 		return err
