@@ -24,37 +24,29 @@ func main() {
 	}
 }
 
-var client *controller.Client
-var db *postgres.DB
-
 func run() error {
-	if err := initDB(); err != nil {
+	db := postgres.Wait(nil, nil)
+	if err := setupDB(db); err != nil {
 		return err
 	}
 
-	if err := initClient(); err != nil {
+	client, err := newControllerClient()
+	if err != nil {
 		return err
 	}
+
+	server := NewServer(db, client)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "5000"
 	}
 
-	router := httprouter.New()
-	router.POST("/", webhook)
-	router.GET("/", index)
-	router.GET("/repos.json", getRepos)
-	router.POST("/repos", createRepo)
-	router.GET("/apps.json", getApps)
-	router.ServeFiles("/assets/*filepath", http.Dir("assets"))
-
 	log.Printf("listening for GitHub webhooks on port %s...\n", port)
-	return http.ListenAndServe(":"+port, router)
+	return http.ListenAndServe(":"+port, server)
 }
 
-func initDB() error {
-	db = postgres.Wait(nil, nil)
+func setupDB(db *postgres.DB) error {
 	m := postgres.NewMigrations()
 	m.Add(1,
 		`CREATE TABLE repos (
@@ -68,21 +60,39 @@ func initDB() error {
 	return m.Migrate(db)
 }
 
-func initClient() error {
+func newControllerClient() (*controller.Client, error) {
 	instances, err := discoverd.GetInstances("controller", 10*time.Second)
 	if err != nil {
 		log.Println("error looking up controller in service discovery:", err)
-		return err
+		return nil, err
 	}
-	client, err = controller.NewClient("", instances[0].Meta["AUTH_KEY"])
-	if err != nil {
-		log.Println("error creating controller client:", err)
-		return err
-	}
-	return nil
+	return controller.NewClient("", instances[0].Meta["AUTH_KEY"])
 }
 
-func index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func NewServer(db *postgres.DB, client *controller.Client) *Server {
+	s := &Server{db: db, client: client}
+	s.router = httprouter.New()
+	s.router.POST("/", s.webhook)
+	s.router.GET("/", s.index)
+	s.router.GET("/repos.json", s.getRepos)
+	s.router.POST("/repos", s.createRepo)
+	s.router.GET("/apps.json", s.getApps)
+	s.router.ServeFiles("/assets/*filepath", http.Dir("assets"))
+	return s
+
+}
+
+type Server struct {
+	db     *postgres.DB
+	client *controller.Client
+	router *httprouter.Router
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	s.router.ServeHTTP(w, req)
+}
+
+func (s *Server) index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	http.ServeFile(w, req, "assets/index.html")
 }
 
@@ -99,8 +109,8 @@ func scanRepo(s postgres.Scanner) (Repo, error) {
 	return r, s.Scan(&r.ID, &r.Name, &r.Branch, &r.App, &r.CreatedAt)
 }
 
-func getRepos(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	rows, err := db.Query("SELECT id, name, branch, app, created_at FROM repos")
+func (s *Server) getRepos(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	rows, err := s.db.Query("SELECT id, name, branch, app, created_at FROM repos")
 	if err != nil {
 		log.Println("error getting repos from db:", err)
 		http.Error(w, "error getting repos", 500)
@@ -126,7 +136,7 @@ func getRepos(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	json.NewEncoder(w).Encode(repos)
 }
 
-func createRepo(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func (s *Server) createRepo(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	r := Repo{
 		Name:   req.FormValue("name"),
 		Branch: req.FormValue("branch"),
@@ -139,7 +149,7 @@ func createRepo(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if r.Branch == "" {
 		r.Branch = "master"
 	}
-	err := db.QueryRow("INSERT INTO repos (name, branch, app) VALUES ($1, $2, $3) RETURNING created_at", r.Name, r.Branch, r.App).Scan(&r.CreatedAt)
+	err := s.db.QueryRow("INSERT INTO repos (name, branch, app) VALUES ($1, $2, $3) RETURNING created_at", r.Name, r.Branch, r.App).Scan(&r.CreatedAt)
 	if err != nil {
 		log.Println("error adding repo to db:", err)
 		http.Error(w, "error adding repo", 500)
@@ -148,8 +158,8 @@ func createRepo(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	http.Redirect(w, req, "/", 302)
 }
 
-func getApps(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	apps, err := client.AppList()
+func (s *Server) getApps(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	apps, err := s.client.AppList()
 	if err != nil {
 		log.Println("error getting apps:", err)
 		http.Error(w, "error getting apps", 500)
@@ -159,8 +169,8 @@ func getApps(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	json.NewEncoder(w).Encode(apps)
 }
 
-func getRepo(name, branch string) (Repo, error) {
-	row := db.QueryRow("SELECT id, name, branch, app, created_at FROM repos WHERE name = $1 AND branch = $2", name, branch)
+func (s *Server) getRepo(name, branch string) (Repo, error) {
+	row := s.db.QueryRow("SELECT id, name, branch, app, created_at FROM repos WHERE name = $1 AND branch = $2", name, branch)
 	return scanRepo(row)
 }
 
@@ -181,7 +191,7 @@ type Repository struct {
 	URL      string `json:"url"`
 }
 
-func webhook(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func (s *Server) webhook(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	log.Println("handling request")
 	defer req.Body.Close()
 
@@ -219,25 +229,25 @@ func webhook(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	}
 
 	branch := path.Base(event.Ref)
-	repo, err := getRepo(event.Repository.FullName, branch)
+	repo, err := s.getRepo(event.Repository.FullName, branch)
 	if err != nil {
 		log.Printf("error loading repo %q (%q branch): %s\n", event.Repository.FullName, branch, err)
 		return
 	}
 
-	go deploy(repo.App, event.Repository.CloneURL, branch, event.HeadCommit.ID)
+	go s.deploy(repo.App, event.Repository.CloneURL, branch, event.HeadCommit.ID)
 }
 
-func deploy(app, url, branch, commit string) {
+func (s *Server) deploy(app, url, branch, commit string) {
 	log.Printf("deploying app: %s, url: %s, branch: %s, commit: %s\n", app, url, branch, commit)
 
-	taffyRelease, err := client.GetAppRelease("taffy")
+	taffyRelease, err := s.client.GetAppRelease("taffy")
 	if err != nil {
 		log.Println("error getting taffy release:", err)
 		return
 	}
 
-	rwc, err := client.RunJobAttached("taffy", &ct.NewJob{
+	rwc, err := s.client.RunJobAttached("taffy", &ct.NewJob{
 		ReleaseID:  taffyRelease.ID,
 		ReleaseEnv: true,
 		Cmd:        []string{app, url, branch, commit},
