@@ -87,7 +87,7 @@ func index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 }
 
 type Repo struct {
-	ID        int64      `json:"id"`
+	ID        int32      `json:"id"`
 	Name      string     `json:"name"`
 	Branch    string     `json:"branch"`
 	App       string     `json:"app"`
