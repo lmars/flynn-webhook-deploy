@@ -15,7 +15,6 @@ import (
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/discoverd/client"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/cluster"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/postgres"
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/go-sql"
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
 )
 
@@ -26,7 +25,7 @@ func main() {
 }
 
 var client *controller.Client
-var db *sql.DB
+var db *postgres.DB
 
 func run() error {
 	if err := initDB(); err != nil {
@@ -55,7 +54,7 @@ func run() error {
 }
 
 func initDB() error {
-	db := postgres.Wait(nil, nil)
+	db = postgres.Wait(nil, nil)
 	m := postgres.NewMigrations()
 	m.Add(1,
 		`CREATE TABLE repos (
