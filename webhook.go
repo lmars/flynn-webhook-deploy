@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/controller/client"
@@ -25,6 +29,11 @@ func main() {
 }
 
 func run() error {
+	secretToken := os.Getenv("SECRET_TOKEN")
+	if secretToken == "" {
+		return errors.New("missing SECRET_TOKEN environment variable")
+	}
+
 	db := postgres.Wait(nil, nil)
 	if err := setupDB(db); err != nil {
 		return err
@@ -35,7 +44,7 @@ func run() error {
 		return err
 	}
 
-	server := NewServer(db, client)
+	server := NewServer(db, client, []byte(secretToken))
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -69,8 +78,8 @@ func newControllerClient() (*controller.Client, error) {
 	return controller.NewClient("", instances[0].Meta["AUTH_KEY"])
 }
 
-func NewServer(db *postgres.DB, client *controller.Client) *Server {
-	s := &Server{db: db, client: client}
+func NewServer(db *postgres.DB, client *controller.Client, secretToken []byte) *Server {
+	s := &Server{db: db, client: client, secretToken: secretToken}
 	s.router = httprouter.New()
 	s.router.POST("/", s.webhook)
 	s.router.GET("/", s.index)
@@ -83,9 +92,10 @@ func NewServer(db *postgres.DB, client *controller.Client) *Server {
 }
 
 type Server struct {
-	db     *postgres.DB
-	client *controller.Client
-	router *httprouter.Router
+	db          *postgres.DB
+	client      *controller.Client
+	secretToken []byte
+	router      *httprouter.Router
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -195,15 +205,38 @@ func (s *Server) webhook(w http.ResponseWriter, req *http.Request, _ httprouter.
 	log.Println("handling request")
 	defer req.Body.Close()
 
-	header, ok := req.Header["X-Github-Event"]
-	if !ok {
+	eventHeader := req.Header.Get("X-Github-Event")
+	if eventHeader == "" {
 		log.Println("request missing X-Github-Event header")
-		http.Error(w, "missing X-Github-Event header\n", 400)
+		http.Error(w, "missing X-Github-Event header", 400)
 		return
 	}
 
-	name := strings.Join(header, " ")
-	switch name {
+	sigHeader := req.Header.Get("X-Hub-Signature")
+	if sigHeader == "" {
+		log.Println("request missing X-Hub-Signature header")
+		http.Error(w, "missing X-Hub-Signature header", 400)
+		return
+	}
+
+	// read the body and check the signature is correct
+	var body bytes.Buffer
+
+	mac := hmac.New(sha1.New, s.secretToken)
+	if _, err := io.Copy(io.MultiWriter(&body, mac), req.Body); err != nil {
+		log.Println("error reading request body:", err)
+		http.Error(w, "internal error", 500)
+		return
+	}
+	sig := fmt.Sprintf("sha1=%x", mac.Sum(nil))
+
+	if !hmac.Equal([]byte(sig), []byte(sigHeader)) {
+		log.Println("invalid X-Hub-Signature header")
+		http.Error(w, "invalid X-Hub-Signature header", 400)
+		return
+	}
+
+	switch eventHeader {
 	case "ping":
 		log.Println("received ping event")
 		fmt.Fprintln(w, "pong")
@@ -211,13 +244,13 @@ func (s *Server) webhook(w http.ResponseWriter, req *http.Request, _ httprouter.
 	case "push":
 		log.Println("received push event")
 	default:
-		log.Println("received unknown event:", name)
-		http.Error(w, fmt.Sprintf("Unknown X-Github-Event: %s\n", name), 400)
+		log.Println("received unknown event:", eventHeader)
+		http.Error(w, "unknown X-Github-Event: "+eventHeader, 400)
 		return
 	}
 
 	var event Event
-	if err := json.NewDecoder(req.Body).Decode(&event); err != nil {
+	if err := json.NewDecoder(&body).Decode(&event); err != nil {
 		log.Println("error decoding JSON:", err)
 		http.Error(w, "invalid JSON payload", 400)
 		return

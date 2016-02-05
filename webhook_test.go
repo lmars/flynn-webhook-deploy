@@ -50,7 +50,7 @@ func TestCreateRepo(t *testing.T) {
 	}
 	defer db.Close()
 
-	s := httptest.NewServer(NewServer(db, nil))
+	s := httptest.NewServer(NewServer(db, nil, nil))
 	defer s.Close()
 
 	data := bytes.NewBuffer([]byte("name=lmars/foo&branch=master&app=foo"))
