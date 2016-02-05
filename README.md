@@ -1,6 +1,8 @@
 Flynn GitHub Webhook Deploy
 ===========================
 
+[![Circle CI](https://circleci.com/gh/lmars/flynn-webhook-deploy.svg?style=svg)](https://circleci.com/gh/lmars/flynn-webhook-deploy)
+
 Deploy GitHub repositories to Flynn on git push.
 
 Usage
