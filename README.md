@@ -8,12 +8,21 @@ Deploy GitHub repositories to Flynn on git push.
 Usage
 -----
 
-Deploy this Go app to Flynn with a Postgres DB:
+Generate a secret token to include in the GitHub webhook (see [here](https://developer.github.com/webhooks/securing/)
+for more information):
+
+```
+$ openssl rand -hex 20
+1d7f852c9e3f8ef889a42dfc823f57c2452df5bb
+```
+
+Deploy this Go app to Flynn with the secret token and a Postgres DB:
 
 ```
 $ git clone https://github.com/lmars/flynn-webhook-deploy.git
 $ cd flynn-webhook-deploy
 $ flynn create webhook-deploy
+$ flynn env set SECRET_TOKEN=1d7f852c9e3f8ef889a42dfc823f57c2452df5bb
 $ flynn resource add postgres
 $ git push flynn master
 $ flynn scale web=1
