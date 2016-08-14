@@ -69,7 +69,7 @@ func setupDB(db *postgres.DB) error {
 	return m.Migrate(db)
 }
 
-func newControllerClient() (*controller.Client, error) {
+func newControllerClient() (controller.Client, error) {
 	instances, err := discoverd.GetInstances("controller", 10*time.Second)
 	if err != nil {
 		log.Println("error looking up controller in service discovery:", err)
@@ -78,7 +78,7 @@ func newControllerClient() (*controller.Client, error) {
 	return controller.NewClient("", instances[0].Meta["AUTH_KEY"])
 }
 
-func NewServer(db *postgres.DB, client *controller.Client, secretToken []byte) *Server {
+func NewServer(db *postgres.DB, client controller.Client, secretToken []byte) *Server {
 	s := &Server{db: db, client: client, secretToken: secretToken}
 	s.router = httprouter.New()
 	s.router.POST("/", s.webhook)
@@ -93,7 +93,7 @@ func NewServer(db *postgres.DB, client *controller.Client, secretToken []byte) *
 
 type Server struct {
 	db          *postgres.DB
-	client      *controller.Client
+	client      controller.Client
 	secretToken []byte
 	router      *httprouter.Router
 }
