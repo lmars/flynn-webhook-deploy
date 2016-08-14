@@ -14,12 +14,12 @@ import (
 	"path"
 	"time"
 
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/controller/client"
-	ct "github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/controller/types"
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/discoverd/client"
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/cluster"
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/postgres"
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
+	"github.com/flynn/flynn/controller/client"
+	ct "github.com/flynn/flynn/controller/types"
+	"github.com/flynn/flynn/discoverd/client"
+	"github.com/flynn/flynn/pkg/cluster"
+	"github.com/flynn/flynn/pkg/postgres"
+	"github.com/julienschmidt/httprouter"
 )
 
 func main() {

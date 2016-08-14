@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/flynn/flynn/pkg/postgres"
-	"github.com/lmars/flynn-webhook-deploy/Godeps/_workspace/src/github.com/jackc/pgx"
+	"github.com/flynn/flynn/pkg/postgres"
+	"github.com/jackc/pgx"
 )
 
 func setupTestDB(dbname string) (*postgres.DB, error) {
