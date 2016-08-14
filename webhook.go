@@ -283,7 +283,7 @@ func (s *Server) deploy(app, url, branch, commit string) {
 	rwc, err := s.client.RunJobAttached("taffy", &ct.NewJob{
 		ReleaseID:  taffyRelease.ID,
 		ReleaseEnv: true,
-		Cmd:        []string{app, url, branch, commit},
+		Args:       []string{"/bin/taffy", app, url, branch, commit},
 	})
 	attachClient := cluster.NewAttachClient(rwc)
 	exit, err := attachClient.Receive(os.Stdout, os.Stderr)
