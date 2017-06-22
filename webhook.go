@@ -11,7 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
+	"strings"
 	"time"
 
 	"github.com/flynn/flynn/controller/client"
@@ -261,7 +261,7 @@ func (s *Server) webhook(w http.ResponseWriter, req *http.Request, _ httprouter.
 		return
 	}
 
-	branch := path.Base(event.Ref)
+	branch := strings.TrimPrefix(event.Ref, "refs/heads/")
 	repo, err := s.getRepo(event.Repository.FullName, branch)
 	if err != nil {
 		log.Printf("error loading repo %q (%q branch): %s\n", event.Repository.FullName, branch, err)
