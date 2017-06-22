@@ -66,6 +66,9 @@ func setupDB(db *postgres.DB) error {
 	created_at timestamp with time zone NOT NULL DEFAULT current_timestamp,
 	UNIQUE (name, branch)
 	);`)
+	m.Add(2,
+		`ALTER TABLE repos ADD COLUMN use_ssh boolean NOT NULL DEFAULT FALSE`,
+	)
 	return m.Migrate(db)
 }
 
@@ -111,16 +114,17 @@ type Repo struct {
 	Name      string     `json:"name"`
 	Branch    string     `json:"branch"`
 	App       string     `json:"app"`
+	UseSSH    bool       `json:"use_ssh"`
 	CreatedAt *time.Time `json:"created_at"`
 }
 
 func scanRepo(s postgres.Scanner) (Repo, error) {
 	var r Repo
-	return r, s.Scan(&r.ID, &r.Name, &r.Branch, &r.App, &r.CreatedAt)
+	return r, s.Scan(&r.ID, &r.Name, &r.Branch, &r.App, &r.UseSSH, &r.CreatedAt)
 }
 
 func (s *Server) getRepos(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	rows, err := s.db.Query("SELECT id, name, branch, app, created_at FROM repos")
+	rows, err := s.db.Query("SELECT id, name, branch, app, use_ssh, created_at FROM repos")
 	if err != nil {
 		log.Println("error getting repos from db:", err)
 		http.Error(w, "error getting repos", 500)
@@ -180,7 +184,7 @@ func (s *Server) getApps(w http.ResponseWriter, req *http.Request, _ httprouter.
 }
 
 func (s *Server) getRepo(name, branch string) (Repo, error) {
-	row := s.db.QueryRow("SELECT id, name, branch, app, created_at FROM repos WHERE name = $1 AND branch = $2", name, branch)
+	row := s.db.QueryRow("SELECT id, name, branch, app, use_ssh, created_at FROM repos WHERE name = $1 AND branch = $2", name, branch)
 	return scanRepo(row)
 }
 
@@ -197,6 +201,7 @@ type Commit struct {
 
 type Repository struct {
 	FullName string `json:"full_name"`
+	SSHURL   string `json:"ssh_url"`
 	CloneURL string `json:"clone_url"`
 	URL      string `json:"url"`
 }
@@ -268,7 +273,11 @@ func (s *Server) webhook(w http.ResponseWriter, req *http.Request, _ httprouter.
 		return
 	}
 
-	go s.deploy(repo.App, event.Repository.CloneURL, branch, event.HeadCommit.ID)
+	url := event.Repository.CloneURL
+	if repo.UseSSH {
+		url = event.Repository.SSHURL
+	}
+	go s.deploy(repo.App, url, branch, event.HeadCommit.ID)
 }
 
 func (s *Server) deploy(app, url, branch, commit string) {
